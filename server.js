@@ -29,12 +29,7 @@ if (!fs.existsSync(USERS_FILE)) {
 function getUsers() {
   try {
     const data = fs.readFileSync(USERS_FILE);
-    const users = JSON.parse(data);
-    // Ensure all users have a bio field
-    return users.map(u => ({
-      ...u,
-      bio: u.bio || ''
-    }));
+    return JSON.parse(data);
   } catch (err) {
     return [];
   }
@@ -50,7 +45,7 @@ function generateToken() {
   return crypto.randomBytes(32).toString('hex');
 }
 
-// Helper: find user by email or username (case-insensitive)
+// Helper: find user by email or username
 function findUserByEmailOrUsername(users, identifier) {
   const lower = identifier.toLowerCase();
   return users.find(u => 
@@ -59,7 +54,7 @@ function findUserByEmailOrUsername(users, identifier) {
   );
 }
 
-// Helper: check if username is taken (excluding a specific user ID)
+// Helper: check if username is taken
 function isUsernameTaken(users, username, excludeId = null) {
   const lower = username.toLowerCase();
   return users.some(u => 
@@ -67,7 +62,7 @@ function isUsernameTaken(users, username, excludeId = null) {
   );
 }
 
-// Helper: check if email is taken (excluding a specific user ID)
+// Helper: check if email is taken
 function isEmailTaken(users, email, excludeId = null) {
   if (!email) return false;
   const lower = email.toLowerCase();
@@ -91,17 +86,14 @@ app.post('/api/signup', (req, res) => {
   
   const users = getUsers();
   
-  // Check if username is taken
   if (isUsernameTaken(users, username)) {
     return res.status(400).json({ error: 'Username already taken' });
   }
   
-  // Check if email is taken (if provided)
   if (email && isEmailTaken(users, email)) {
     return res.status(400).json({ error: 'Email already registered' });
   }
   
-  // Create user with verification token
   const token = generateToken();
   const newUser = {
     id: Date.now().toString(),
@@ -120,14 +112,9 @@ app.post('/api/signup', (req, res) => {
   users.push(newUser);
   saveUsers(users);
   
-  // If email provided, send verification (simulated)
   if (email) {
-    console.log(`\n📧 ====== VERIFICATION EMAIL ======`);
-    console.log(`To: ${email}`);
-    console.log(`Subject: Verify your VibeSphere account`);
-    console.log(`Message: Click the link below to verify your account:`);
-    console.log(`🔗 http://localhost:${PORT}/api/verify?token=${token}`);
-    console.log(`=================================\n`);
+    console.log(`\n📧 VERIFICATION EMAIL for ${email}`);
+    console.log(`🔗 http://localhost:${PORT}/api/verify?token=${token}\n`);
   }
   
   res.json({
@@ -213,7 +200,7 @@ app.get('/api/verify', (req, res) => {
         <div class="card">
           <div class="check">✅</div>
           <h1>Email Verified!</h1>
-          <p>Your account is now verified. You can now sign in to VibeSphere and start connecting with your community.</p>
+          <p>Your account is now verified. You can now sign in to VibeSphere.</p>
           <a href="/" class="btn">Go to VibeSphere</a>
         </div>
       </body>
@@ -221,7 +208,7 @@ app.get('/api/verify', (req, res) => {
   `);
 });
 
-// Sign in - supports email OR username
+// Sign in
 app.post('/api/signin', (req, res) => {
   const { identifier, password } = req.body;
   
@@ -236,20 +223,17 @@ app.post('/api/signin', (req, res) => {
     return res.status(401).json({ error: 'Invalid credentials' });
   }
   
-  // Check password
   if (user.password !== password) {
     return res.status(401).json({ error: 'Invalid credentials' });
   }
   
-  // Check if verified (if email was provided)
   if (user.email && !user.verified) {
     return res.status(403).json({ 
-      error: 'Email not verified. Check your inbox for the verification link.',
+      error: 'Email not verified. Check your inbox.',
       needsVerification: true
     });
   }
   
-  // Rotate token
   user.token = generateToken();
   saveUsers(users);
   
@@ -269,7 +253,7 @@ app.post('/api/signin', (req, res) => {
   });
 });
 
-// Get user by token (auto-login)
+// Get current user
 app.get('/api/me', (req, res) => {
   const token = req.headers.authorization?.replace('Bearer ', '');
   if (!token) {
@@ -298,19 +282,27 @@ app.get('/api/me', (req, res) => {
 
 // ==================== PROFILE ENDPOINTS ====================
 
-// Get public profile by username or ID
+// Get public profile by username - DAS WICHTIGSTE!
 app.get('/api/profile/:identifier', (req, res) => {
+  console.log('🔍 Profile requested for:', req.params.identifier);
+  
   const { identifier } = req.params;
   const users = getUsers();
+  
+  console.log('👥 Total users:', users.length);
   
   const user = users.find(u => 
     u.username.toLowerCase() === identifier.toLowerCase() || u.id === identifier
   );
   
   if (!user) {
+    console.log('❌ User not found:', identifier);
     return res.status(404).json({ error: 'User not found' });
   }
   
+  console.log('✅ User found:', user.username);
+  
+  // Return public profile (no password, no token)
   res.json({
     id: user.id,
     username: user.username,
@@ -323,7 +315,7 @@ app.get('/api/profile/:identifier', (req, res) => {
   });
 });
 
-// Update profile (requires auth)
+// Update profile
 app.put('/api/profile', (req, res) => {
   const token = req.headers.authorization?.replace('Bearer ', '');
   if (!token) {
@@ -339,15 +331,10 @@ app.put('/api/profile', (req, res) => {
   const { avatar, banner, background, bio } = req.body;
   const user = users[userIndex];
   
-  // Username CANNOT be changed - ignore any username updates
-  
   if (avatar !== undefined) user.avatar = avatar;
   if (banner !== undefined) user.banner = banner;
   if (background !== undefined) user.background = background;
-  if (bio !== undefined) {
-    user.bio = bio;
-    console.log(`📝 Bio updated for ${user.username}: "${bio}"`);
-  }
+  if (bio !== undefined) user.bio = bio;
   
   saveUsers(users);
   
@@ -366,7 +353,7 @@ app.put('/api/profile', (req, res) => {
   });
 });
 
-// Delete account (requires auth)
+// Delete account
 app.delete('/api/delete-account', (req, res) => {
   const token = req.headers.authorization?.replace('Bearer ', '');
   if (!token) {
@@ -380,30 +367,24 @@ app.delete('/api/delete-account', (req, res) => {
   }
   
   const deletedUser = users[userIndex];
-  
   users.splice(userIndex, 1);
   saveUsers(users);
   
-  console.log(`🗑️ Account deleted: ${deletedUser.username} (${deletedUser.email || 'no email'})`);
+  console.log(`🗑️ Account deleted: ${deletedUser.username}`);
   
   res.json({ 
     success: true, 
-    message: 'Account deleted successfully',
-    username: deletedUser.username
+    message: 'Account deleted successfully'
   });
 });
 
 // ==================== SERVE FRONTEND ====================
 
-// Serve the main app - explicitly set content type
 app.get('/', (req, res) => {
-  res.setHeader('Content-Type', 'text/html');
   res.sendFile(path.join(__dirname, 'public', 'index.html'));
 });
 
-// Serve profile view
 app.get('/profile/:identifier', (req, res) => {
-  res.setHeader('Content-Type', 'text/html');
   res.sendFile(path.join(__dirname, 'public', 'profile.html'));
 });
 
@@ -411,8 +392,5 @@ app.get('/profile/:identifier', (req, res) => {
 app.listen(PORT, () => {
   console.log(`\n🚀 VibeSphere server running at http://localhost:${PORT}`);
   console.log(`📁 Data stored in: ${USERS_FILE}`);
-  console.log(`\n💡 Tip: Sign up with an email to test verification`);
-  console.log(`   Check the console for verification links`);
-  console.log(`\n🔒 Usernames are permanent and cannot be changed`);
-  console.log(`🗑️ Delete account to free up the username\n`);
+  console.log(`\n🔒 Usernames are permanent and cannot be changed\n`);
 });
