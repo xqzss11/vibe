@@ -7,45 +7,47 @@ const crypto = require('crypto');
 const app = express();
 const PORT = process.env.PORT || 3000;
 
-// Middleware
+// ===== MIDDLEWARE =====
 app.use(cors());
 app.use(express.json({ limit: '10mb' }));
 app.use(express.static('public'));
 
-// Data file path
+// ===== DATA FILE =====
 const USERS_FILE = path.join(__dirname, 'data', 'users.json');
 
-// Ensure data directory exists
+// Stelle sicher, dass der data-Ordner existiert
 if (!fs.existsSync(path.join(__dirname, 'data'))) {
   fs.mkdirSync(path.join(__dirname, 'data'));
 }
 
-// Initialize users file if it doesn't exist
+// Initialisiere users.json falls nicht vorhanden
 if (!fs.existsSync(USERS_FILE)) {
   fs.writeFileSync(USERS_FILE, JSON.stringify([]));
 }
 
-// Helper: read users
+// ===== HELPER FUNCTIONS =====
 function getUsers() {
   try {
     const data = fs.readFileSync(USERS_FILE);
-    return JSON.parse(data);
+    const users = JSON.parse(data);
+    // Stelle sicher, dass jeder User ein bio-Feld hat
+    return users.map(u => ({
+      ...u,
+      bio: u.bio || ''
+    }));
   } catch (err) {
     return [];
   }
 }
 
-// Helper: write users
 function saveUsers(users) {
   fs.writeFileSync(USERS_FILE, JSON.stringify(users, null, 2));
 }
 
-// Helper: generate auth token
 function generateToken() {
   return crypto.randomBytes(32).toString('hex');
 }
 
-// Helper: find user by email or username
 function findUserByEmailOrUsername(users, identifier) {
   const lower = identifier.toLowerCase();
   return users.find(u => 
@@ -54,7 +56,6 @@ function findUserByEmailOrUsername(users, identifier) {
   );
 }
 
-// Helper: check if username is taken
 function isUsernameTaken(users, username, excludeId = null) {
   const lower = username.toLowerCase();
   return users.some(u => 
@@ -62,7 +63,6 @@ function isUsernameTaken(users, username, excludeId = null) {
   );
 }
 
-// Helper: check if email is taken
 function isEmailTaken(users, email, excludeId = null) {
   if (!email) return false;
   const lower = email.toLowerCase();
@@ -71,9 +71,11 @@ function isEmailTaken(users, email, excludeId = null) {
   );
 }
 
-// ==================== AUTH ENDPOINTS ====================
+// ============================================================
+// ===== AUTH ENDPOINTS =====
+// ============================================================
 
-// Sign up
+// SIGN UP
 app.post('/api/signup', (req, res) => {
   const { username, email, password } = req.body;
   
@@ -133,7 +135,7 @@ app.post('/api/signup', (req, res) => {
   });
 });
 
-// Verify email
+// VERIFY EMAIL
 app.get('/api/verify', (req, res) => {
   const { token } = req.query;
   if (!token) {
@@ -208,7 +210,7 @@ app.get('/api/verify', (req, res) => {
   `);
 });
 
-// Sign in
+// SIGN IN
 app.post('/api/signin', (req, res) => {
   const { identifier, password } = req.body;
   
@@ -253,7 +255,7 @@ app.post('/api/signin', (req, res) => {
   });
 });
 
-// Get current user
+// GET CURRENT USER (auto-login)
 app.get('/api/me', (req, res) => {
   const token = req.headers.authorization?.replace('Bearer ', '');
   if (!token) {
@@ -280,29 +282,23 @@ app.get('/api/me', (req, res) => {
   });
 });
 
-// ==================== PROFILE ENDPOINTS ====================
+// ============================================================
+// ===== PROFILE ENDPOINTS =====
+// ============================================================
 
-// Get public profile by username - DAS WICHTIGSTE!
+// GET PUBLIC PROFILE
 app.get('/api/profile/:identifier', (req, res) => {
-  console.log('🔍 Profile requested for:', req.params.identifier);
-  
   const { identifier } = req.params;
   const users = getUsers();
-  
-  console.log('👥 Total users:', users.length);
   
   const user = users.find(u => 
     u.username.toLowerCase() === identifier.toLowerCase() || u.id === identifier
   );
   
   if (!user) {
-    console.log('❌ User not found:', identifier);
     return res.status(404).json({ error: 'User not found' });
   }
   
-  console.log('✅ User found:', user.username);
-  
-  // Return public profile (no password, no token)
   res.json({
     id: user.id,
     username: user.username,
@@ -315,7 +311,7 @@ app.get('/api/profile/:identifier', (req, res) => {
   });
 });
 
-// Update profile
+// UPDATE PROFILE (username CANNOT be changed)
 app.put('/api/profile', (req, res) => {
   const token = req.headers.authorization?.replace('Bearer ', '');
   if (!token) {
@@ -353,7 +349,7 @@ app.put('/api/profile', (req, res) => {
   });
 });
 
-// Delete account
+// DELETE ACCOUNT
 app.delete('/api/delete-account', (req, res) => {
   const token = req.headers.authorization?.replace('Bearer ', '');
   if (!token) {
@@ -378,7 +374,26 @@ app.delete('/api/delete-account', (req, res) => {
   });
 });
 
-// ==================== SERVE FRONTEND ====================
+// ============================================================
+// ===== NEU: GET ALL USERS (für Leaderboard) =====
+// ============================================================
+app.get('/api/users', (req, res) => {
+  const users = getUsers();
+  // Sicherheitshalber keine Passwörter oder Tokens senden
+  res.json(users.map(u => ({
+    id: u.id,
+    username: u.username,
+    avatar: u.avatar || '',
+    banner: u.banner || '',
+    bio: u.bio || '',
+    createdAt: u.createdAt,
+    email: u.email || ''
+  })));
+});
+
+// ============================================================
+// ===== SERVE FRONTEND =====
+// ============================================================
 
 app.get('/', (req, res) => {
   res.sendFile(path.join(__dirname, 'public', 'index.html'));
@@ -388,9 +403,13 @@ app.get('/profile/:identifier', (req, res) => {
   res.sendFile(path.join(__dirname, 'public', 'profile.html'));
 });
 
-// Start server
+// ============================================================
+// ===== START SERVER =====
+// ============================================================
+
 app.listen(PORT, () => {
   console.log(`\n🚀 VibeSphere server running at http://localhost:${PORT}`);
   console.log(`📁 Data stored in: ${USERS_FILE}`);
-  console.log(`\n🔒 Usernames are permanent and cannot be changed\n`);
+  console.log(`\n🔒 Usernames are permanent and cannot be changed`);
+  console.log(`📊 /api/users endpoint available for leaderboard\n`);
 });
