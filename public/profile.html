@@ -1,0 +1,133 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>VibeSphere · profile</title>
+  <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.0.0-beta3/css/all.min.css">
+  <link rel="stylesheet" href="/style.css">
+  <style>
+    .profile-page { display: block !important; }
+    .profile-card { max-width: 600px; margin: 0 auto; }
+    .back-link { display: inline-block; margin-bottom: 1.5rem; color: #5865f2; text-decoration: none; }
+    .back-link:hover { text-decoration: underline; }
+  </style>
+</head>
+<body>
+  <div style="max-width: 660px; margin: 0 auto; padding: 2rem 1.5rem;">
+    <a href="/" class="back-link"><i class="fas fa-arrow-left"></i> Back to VibeSphere</a>
+    
+    <div class="profile-page">
+      <div class="profile-card" id="profileCard">
+        <div id="loadingState" style="text-align:center; padding: 60px 0; color:#8892b0;">
+          <i class="fas fa-spinner fa-spin" style="font-size:2rem;"></i>
+          <p style="margin-top:1rem;">Loading profile...</p>
+        </div>
+        
+        <div id="profileContent" style="display:none;">
+          <!-- BANNER -->
+          <div class="banner-wrap" style="cursor:default;">
+            <div id="publicBanner">
+              <div class="banner-placeholder" id="publicBannerPlaceholder">
+                <i class="fas fa-image"></i> <span>No banner</span>
+              </div>
+              <img id="publicBannerImg" class="banner-img hidden" src="" alt="banner">
+            </div>
+          </div>
+
+          <!-- AVATAR + NAME -->
+          <div class="profile-info-container">
+            <div class="profile-avatar-wrap" style="cursor:default;">
+              <div id="publicAvatar">
+                <div class="avatar-placeholder" id="publicAvatarPlaceholder"><i class="fas fa-user"></i></div>
+                <img id="publicAvatarImg" class="avatar-img hidden" src="" alt="avatar">
+              </div>
+            </div>
+
+            <div class="profile-username-section">
+              <div class="profile-username">
+                <span class="at-symbol">@</span>
+                <span class="username-text" id="publicUsername">username</span>
+              </div>
+              <div class="profile-badge">
+                <i class="fas fa-check-circle" style="color: #5865f2;"></i> member
+              </div>
+            </div>
+
+            <div class="profile-join-date">
+              <i class="fas fa-calendar-alt"></i> Joined <span id="publicJoined">August 2026</span>
+            </div>
+
+            <div class="profile-bio" style="border-top: 1px solid #1e2633; padding-top: 0.8rem;">
+              <span id="publicBio">No bio yet.</span>
+            </div>
+          </div>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <script>
+    const API_URL = '';
+    
+    async function loadProfile() {
+      const path = window.location.pathname;
+      const identifier = path.split('/profile/')[1] || '';
+      
+      if (!identifier) {
+        document.getElementById('loadingState').innerHTML = '<p style="color:#e74c3c;">No user specified</p>';
+        return;
+      }
+      
+      try {
+        const res = await fetch(`${API_URL}/api/profile/${identifier}`);
+        const data = await res.json();
+        
+        if (!res.ok) {
+          document.getElementById('loadingState').innerHTML = `<p style="color:#e74c3c;">${data.error || 'User not found'}</p>`;
+          return;
+        }
+        
+        document.getElementById('loadingState').style.display = 'none';
+        document.getElementById('profileContent').style.display = 'block';
+        
+        // Apply background
+        if (data.background) {
+          document.getElementById('profileCard').style.background = data.background;
+        }
+        
+        // Avatar
+        if (data.avatar && data.avatar.startsWith('data:image')) {
+          document.getElementById('publicAvatarImg').src = data.avatar;
+          document.getElementById('publicAvatarImg').classList.remove('hidden');
+          document.getElementById('publicAvatarPlaceholder').classList.add('hidden');
+        }
+        
+        // Banner
+        if (data.banner && data.banner.startsWith('data:image')) {
+          document.getElementById('publicBannerImg').src = data.banner;
+          document.getElementById('publicBannerImg').classList.remove('hidden');
+          document.getElementById('publicBannerPlaceholder').classList.add('hidden');
+        }
+        
+        document.getElementById('publicUsername').textContent = data.username;
+        document.getElementById('publicBio').textContent = data.bio || 'No bio yet.';
+        
+        if (data.createdAt) {
+          const date = new Date(data.createdAt);
+          const months = ['January', 'February', 'March', 'April', 'May', 'June', 'July', 'August', 'September', 'October', 'November', 'December'];
+          document.getElementById('publicJoined').textContent = `${months[date.getMonth()]} ${date.getFullYear()}`;
+        }
+        
+        document.title = `${data.username} · VibeSphere profile`;
+        
+      } catch (err) {
+        document.getElementById('loadingState').innerHTML = `<p style="color:#e74c3c;">Error loading profile</p>`;
+        console.error(err);
+      }
+    }
+    
+    loadProfile();
+  </script>
+</body>
+</html>

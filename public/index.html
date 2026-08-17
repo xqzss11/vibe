@@ -1,0 +1,1311 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>VibeSphere · sign in / profile</title>
+  <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.0.0-beta3/css/all.min.css">
+  <link rel="stylesheet" href="/style.css">
+  <style>
+    /* Crop modal styles */
+    .crop-modal {
+      display: none;
+      position: fixed;
+      z-index: 9999;
+      left: 0;
+      top: 0;
+      width: 100%;
+      height: 100%;
+      background: rgba(0, 0, 0, 0.85);
+      backdrop-filter: blur(8px);
+      align-items: center;
+      justify-content: center;
+      padding: 1.5rem;
+    }
+    .crop-modal.active {
+      display: flex;
+    }
+    .crop-modal-content {
+      background: #1a212d;
+      border-radius: 32px;
+      padding: 2rem;
+      max-width: 700px;
+      width: 100%;
+      max-height: 90vh;
+      overflow-y: auto;
+      border: 1px solid #2f3a4b;
+      box-shadow: 0 30px 60px rgba(0, 0, 0, 0.8);
+    }
+    .crop-modal-content h3 {
+      color: #f0f3fa;
+      font-size: 1.4rem;
+      margin-bottom: 1.5rem;
+      display: flex;
+      align-items: center;
+      gap: 12px;
+    }
+    .crop-container {
+      position: relative;
+      overflow: hidden;
+      background: #0b0e14;
+      border-radius: 16px;
+      border: 2px solid #2e3849;
+      margin-bottom: 1.5rem;
+      touch-action: none;
+      cursor: grab;
+      width: 100%;
+      height: 400px;
+    }
+    .crop-container:active {
+      cursor: grabbing;
+    }
+    .crop-container img {
+      display: block;
+      position: absolute;
+      top: 50%;
+      left: 50%;
+      transform: translate(-50%, -50%);
+      max-width: none;
+      max-height: none;
+      pointer-events: none;
+      user-select: none;
+      -webkit-user-drag: none;
+    }
+    .crop-overlay {
+      position: absolute;
+      border: 2px solid rgba(88, 101, 242, 0.8);
+      box-shadow: 0 0 0 9999px rgba(0, 0, 0, 0.6);
+      pointer-events: none;
+      border-radius: 50%;
+    }
+    .crop-overlay.banner-crop {
+      border-radius: 12px;
+    }
+    .crop-controls {
+      display: flex;
+      gap: 12px;
+      flex-wrap: wrap;
+      align-items: center;
+      justify-content: center;
+      margin-top: 1rem;
+    }
+    .crop-controls button {
+      background: #2a3444;
+      border: none;
+      padding: 10px 24px;
+      border-radius: 40px;
+      color: #d3def5;
+      font-weight: 600;
+      cursor: pointer;
+      transition: 0.2s;
+      border: 1px solid #3b4a66;
+    }
+    .crop-controls button:hover {
+      background: #3b4a66;
+      border-color: #5865f2;
+    }
+    .crop-controls button.primary {
+      background: #5865f2;
+      border-color: #5865f2;
+      color: white;
+    }
+    .crop-controls button.primary:hover {
+      background: #4752d4;
+    }
+    .crop-controls button.danger {
+      background: #2f1e2a;
+      border-color: #6b3a4a;
+      color: #e8a0b0;
+    }
+    .crop-controls button.danger:hover {
+      background: #4f2a3a;
+      border-color: #c0396a;
+    }
+    .crop-slider {
+      flex: 1;
+      min-width: 120px;
+      display: flex;
+      align-items: center;
+      gap: 12px;
+      color: #8892b0;
+    }
+    .crop-slider input[type="range"] {
+      flex: 1;
+      -webkit-appearance: none;
+      appearance: none;
+      background: #2e3849;
+      height: 4px;
+      border-radius: 2px;
+      outline: none;
+    }
+    .crop-slider input[type="range"]::-webkit-slider-thumb {
+      -webkit-appearance: none;
+      appearance: none;
+      width: 18px;
+      height: 18px;
+      border-radius: 50%;
+      background: #5865f2;
+      cursor: pointer;
+      box-shadow: 0 0 10px rgba(88, 101, 242, 0.3);
+    }
+    .crop-slider input[type="range"]::-moz-range-thumb {
+      width: 18px;
+      height: 18px;
+      border-radius: 50%;
+      background: #5865f2;
+      cursor: pointer;
+      border: none;
+    }
+    .crop-zoom-display {
+      color: #bcc6e0;
+      font-size: 0.85rem;
+      min-width: 40px;
+      text-align: center;
+    }
+
+    /* Background customization - hidden by default, shown in profile */
+    .bg-customization-container {
+      max-width: 600px;
+      margin: 1rem auto 0;
+      display: none;
+    }
+    .bg-customization-container.active {
+      display: block;
+    }
+
+    .bg-toggle {
+      cursor: pointer;
+      user-select: none;
+      display: flex;
+      align-items: center;
+      gap: 12px;
+      padding: 0.8rem 1.2rem;
+      background: rgba(22, 28, 38, 0.6);
+      border-radius: 16px;
+      border: 1px solid #2f3a4b;
+      transition: 0.2s;
+    }
+    .bg-toggle:hover {
+      border-color: #5865f2;
+      background: rgba(22, 28, 38, 0.8);
+    }
+    .bg-content {
+      max-height: 0;
+      overflow: hidden;
+      transition: max-height 0.4s ease, opacity 0.3s ease, margin 0.3s ease;
+      opacity: 0;
+      margin-top: 0;
+    }
+    .bg-content.open {
+      max-height: 800px;
+      opacity: 1;
+      margin-top: 1rem;
+    }
+    .bg-toggle .fa-chevron-down {
+      transition: transform 0.3s ease;
+    }
+    .bg-toggle .fa-chevron-down.open {
+      transform: rotate(180deg);
+    }
+
+    .bg-preset {
+      transition: all 0.2s ease;
+      position: relative;
+    }
+    .bg-preset:hover {
+      transform: scale(1.1);
+      border-color: #5865f2 !important;
+    }
+    .bg-preset.active {
+      border-color: #5865f2 !important;
+      box-shadow: 0 0 0 2px #5865f2, 0 0 20px rgba(88, 101, 242, 0.3);
+    }
+    .bg-preset .check-mark {
+      position: absolute;
+      top: 50%;
+      left: 50%;
+      transform: translate(-50%, -50%);
+      color: white;
+      font-size: 0.7rem;
+      text-shadow: 0 0 10px rgba(0,0,0,0.8);
+      display: none;
+    }
+    .bg-preset.active .check-mark {
+      display: block;
+    }
+    .color-picker-wrapper {
+      display: flex;
+      align-items: center;
+      gap: 12px;
+      flex: 1;
+      min-width: 150px;
+    }
+    .color-picker-wrapper input[type="color"] {
+      width: 40px;
+      height: 40px;
+      border: 2px solid #2e3849;
+      border-radius: 50%;
+      padding: 2px;
+      background: transparent;
+      cursor: pointer;
+    }
+    .color-picker-wrapper input[type="color"]::-webkit-color-swatch-wrapper {
+      padding: 0;
+    }
+    .color-picker-wrapper input[type="color"]::-webkit-color-swatch {
+      border: none;
+      border-radius: 50%;
+    }
+    .gradient-input-wrapper {
+      display: flex;
+      gap: 8px;
+      flex-wrap: wrap;
+      flex: 1;
+    }
+    .gradient-input-wrapper input[type="color"] {
+      width: 36px;
+      height: 36px;
+      border: 2px solid #2e3849;
+      border-radius: 8px;
+      padding: 2px;
+      background: transparent;
+      cursor: pointer;
+    }
+    .gradient-input-wrapper input[type="color"]::-webkit-color-swatch-wrapper {
+      padding: 0;
+    }
+    .gradient-input-wrapper input[type="color"]::-webkit-color-swatch {
+      border: none;
+      border-radius: 6px;
+    }
+    .gradient-angle-input {
+      background: #1a212d;
+      border: 1px solid #2e3849;
+      border-radius: 8px;
+      padding: 4px 12px;
+      color: #edf2fa;
+      width: 60px;
+      font-size: 0.85rem;
+    }
+    .gradient-angle-input:focus {
+      outline: none;
+      border-color: #5865f2;
+    }
+
+    .form-panel.hidden {
+      display: none !important;
+    }
+    .form-panel:not(.hidden) {
+      display: block !important;
+    }
+
+    .profile-page {
+      display: none;
+      width: 100%;
+      max-width: 600px;
+      margin: 0 auto;
+    }
+    .profile-page.active {
+      display: block;
+    }
+
+    .hidden {
+      display: none !important;
+    }
+
+    .file-input-hidden {
+      display: none !important;
+    }
+  </style>
+</head>
+<body>
+
+<!-- ========== AUTH CARD ========== -->
+<div id="authCard" class="auth-card">
+  <div class="logo-area">
+    <div class="logo-icon">
+      <svg width="28" height="28" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg">
+        <path d="M12 2L2 7L12 12L22 7L12 2Z" stroke="white" stroke-width="2" stroke-linejoin="round"/>
+        <path d="M2 17L12 22L22 17" stroke="white" stroke-width="2" stroke-linejoin="round"/>
+        <path d="M2 12L12 17L22 12" stroke="white" stroke-width="2" stroke-linejoin="round"/>
+        <circle cx="12" cy="7" r="1.5" fill="white"/>
+        <circle cx="12" cy="12" r="1.5" fill="white"/>
+        <circle cx="12" cy="17" r="1.5" fill="white"/>
+      </svg>
+    </div>
+    <div class="logo-text">Vibe<span>Sphere</span></div>
+  </div>
+  <div class="tagline"><i class="fas fa-globe" style="color:#5865f2; margin-right: 8px;"></i> connect · create · share</div>
+
+  <div class="toggle-tabs">
+    <button id="tabSignin" class="active" data-form="signin"><i class="fas fa-arrow-right-to-bracket" style="margin-right: 6px;"></i> Sign in</button>
+    <button id="tabSignup" data-form="signup"><i class="fas fa-user-plus" style="margin-right: 6px;"></i> Sign up</button>
+  </div>
+
+  <!-- SIGN IN -->
+  <div id="formSignin" class="form-panel">
+    <form id="signinForm" autocomplete="off">
+      <div class="form-group">
+        <label><i class="fas fa-user" style="margin-right: 6px;"></i> Email or Username</label>
+        <div class="input-wrap">
+          <i class="fas fa-at"></i>
+          <input type="text" id="signinIdentifier" placeholder="you@vibe.com or username" required>
+        </div>
+      </div>
+      <div class="form-group">
+        <label><i class="fas fa-lock"></i> Password</label>
+        <div class="input-wrap"><i class="fas fa-key"></i><input type="password" id="signinPassword" placeholder="••••••••" required></div>
+      </div>
+      <button type="submit" class="action-btn"><i class="fas fa-arrow-right-to-bracket" style="margin-right: 8px;"></i>Sign in</button>
+    </form>
+  </div>
+
+  <!-- SIGN UP -->
+  <div id="formSignup" class="form-panel hidden">
+    <form id="signupForm" autocomplete="off">
+      <div class="form-group">
+        <label><i class="fas fa-user"></i> Username <span style="color:#5865f2;">*</span></label>
+        <div class="input-wrap"><i class="fas fa-user-pen"></i><input type="text" id="signupUsername" placeholder="cool.vibe" required></div>
+        <div style="color:#5b6a85; font-size:0.7rem; margin-top:4px;">
+          <i class="fas fa-info-circle"></i> Username cannot be changed after signup
+        </div>
+      </div>
+      <div class="form-group">
+        <label><i class="fas fa-envelope"></i> Email <span style="color:#6b7fa0;">(optional - required for verification)</span></label>
+        <div class="input-wrap"><i class="fas fa-at"></i><input type="email" id="signupEmail" placeholder="you@vibe.com"></div>
+      </div>
+      <div class="form-group">
+        <label><i class="fas fa-lock"></i> Password <span style="color:#5865f2;">*</span></label>
+        <div class="input-wrap"><i class="fas fa-key"></i><input type="password" id="signupPassword" placeholder="min 6 chars" required minlength="6"></div>
+      </div>
+      <button type="submit" class="action-btn secondary"><i class="fas fa-user-plus" style="margin-right: 8px;"></i>Create account</button>
+    </form>
+  </div>
+
+  <div id="messageBox" class="message-box">
+    <i class="fas fa-circle-info"></i>
+    <span id="messageText">Welcome — sign in or create an account</span>
+  </div>
+  <div class="footnote"><i class="fas fa-shield-alt"></i> demo · data stored on server</div>
+</div>
+
+<!-- ========== PROFILE PAGE ========== -->
+<div id="profilePage" class="profile-page">
+  <div class="profile-card" id="profileCard">
+    
+    <!-- Banner -->
+    <div class="banner-wrap" id="bannerWrap">
+      <div id="bannerContainer">
+        <div class="banner-placeholder" id="bannerPlaceholder">
+          <i class="fas fa-image"></i> <span>click to set banner</span>
+        </div>
+        <img id="bannerImg" class="banner-img hidden" src="" alt="banner">
+      </div>
+      <div class="banner-edit-hint"><i class="fas fa-pen"></i> edit</div>
+    </div>
+
+    <!-- Profile Info -->
+    <div class="profile-info-container">
+      <!-- Avatar -->
+      <div class="profile-avatar-wrap" id="avatarWrap">
+        <div id="avatarContainer">
+          <div class="avatar-placeholder" id="avatarPlaceholder"><i class="fas fa-user"></i></div>
+          <img id="avatarImg" class="avatar-img hidden" src="" alt="avatar">
+        </div>
+        <div class="avatar-edit-badge"><i class="fas fa-camera"></i></div>
+      </div>
+
+      <!-- Username -->
+      <div class="profile-username-section">
+        <div class="profile-username">
+          <span class="at-symbol">@</span>
+          <span class="username-text" id="usernameText">username</span>
+        </div>
+        <div class="profile-badge">
+          <i class="fas fa-check-circle" style="color: #5865f2;"></i> member
+        </div>
+      </div>
+
+      <!-- Join Date -->
+      <div class="profile-join-date" id="profileJoinDate">
+        <i class="fas fa-calendar-alt"></i> Joined <span id="joinDateText">August 2026</span>
+      </div>
+
+      <!-- Bio -->
+      <div class="profile-bio" id="profileBio">
+        <span id="bioText">No bio yet.</span>
+        <button class="edit-bio-btn" id="editBioBtn"><i class="fas fa-pen"></i></button>
+      </div>
+
+      <!-- Bio Edit Field -->
+      <div id="editBioArea" class="edit-bio-area hidden">
+        <div class="edit-field" style="margin-top: 0.5rem;">
+          <i class="fas fa-pen" style="color:#5865f2;"></i>
+          <input type="text" id="editBioInput" placeholder="Write your bio..." maxlength="150">
+          <button id="saveBioBtn" style="background: #5865f2; border: none; padding: 8px 20px; border-radius: 30px; color: white; font-weight: 600; cursor: pointer;">Save</button>
+          <button id="cancelEditBio" style="background:transparent; color:#8892b0; padding:8px 8px; border: none; cursor: pointer;">cancel</button>
+        </div>
+      </div>
+
+      <!-- Action Buttons -->
+      <div class="profile-action-buttons">
+        <button class="action-btn-profile edit-profile" id="editProfileBtn">
+          <i class="fas fa-user-edit"></i> Edit profile
+        </button>
+        <button class="action-btn-profile sign-out" id="logoutBtn">
+          <i class="fas fa-sign-out-alt"></i> Sign out
+        </button>
+      </div>
+
+      <!-- Delete Account -->
+      <div style="margin-top: 1rem; text-align: center;">
+        <button id="deleteAccountBtn" style="background: transparent; border: none; color: #5b6a85; font-size: 0.7rem; cursor: pointer; opacity: 0.4; transition: 0.2s;">
+          <i class="fas fa-trash"></i> Delete Account
+        </button>
+      </div>
+    </div>
+  </div>
+
+  <!-- ========== BACKGROUND CUSTOMIZATION (COLLAPSIBLE - INSIDE PROFILE) ========== -->
+  <div class="bg-customization-container" id="bgCustomizationContainer">
+    <div class="bg-toggle" id="bgToggle">
+      <i class="fas fa-palette" style="color: #5865f2; font-size: 1.1rem;"></i>
+      <span style="color: #bcc6e0; font-weight: 500;">Background Settings</span>
+      <i class="fas fa-chevron-down" id="bgChevron" style="color: #5865f2; margin-left: auto; transition: transform 0.3s ease;"></i>
+    </div>
+    
+    <div class="bg-content" id="bgContent">
+      <div style="background: rgba(22, 28, 38, 0.6); border-radius: 16px; padding: 1.2rem; border: 1px solid #2f3a4b;">
+        <!-- Solid Color Presets -->
+        <div style="margin-bottom: 0.8rem;">
+          <div style="color: #8892b0; font-size: 0.75rem; margin-bottom: 0.5rem;">Solid Colors</div>
+          <div style="display: flex; flex-wrap: wrap; gap: 8px;">
+            <button class="bg-preset" data-color="#0b0e14" style="width: 32px; height: 32px; border-radius: 50%; border: 2px solid #2e3849; background: #0b0e14; cursor: pointer; transition: 0.2s; position: relative;">
+              <span class="check-mark"><i class="fas fa-check"></i></span>
+            </button>
+            <button class="bg-preset" data-color="#1a1a2e" style="width: 32px; height: 32px; border-radius: 50%; border: 2px solid #2e3849; background: #1a1a2e; cursor: pointer; transition: 0.2s; position: relative;">
+              <span class="check-mark"><i class="fas fa-check"></i></span>
+            </button>
+            <button class="bg-preset" data-color="#16213e" style="width: 32px; height: 32px; border-radius: 50%; border: 2px solid #2e3849; background: #16213e; cursor: pointer; transition: 0.2s; position: relative;">
+              <span class="check-mark"><i class="fas fa-check"></i></span>
+            </button>
+            <button class="bg-preset" data-color="#1b1b2f" style="width: 32px; height: 32px; border-radius: 50%; border: 2px solid #2e3849; background: #1b1b2f; cursor: pointer; transition: 0.2s; position: relative;">
+              <span class="check-mark"><i class="fas fa-check"></i></span>
+            </button>
+            <button class="bg-preset" data-color="#2d1b3d" style="width: 32px; height: 32px; border-radius: 50%; border: 2px solid #2e3849; background: #2d1b3d; cursor: pointer; transition: 0.2s; position: relative;">
+              <span class="check-mark"><i class="fas fa-check"></i></span>
+            </button>
+            <button class="bg-preset" data-color="#1a2a1a" style="width: 32px; height: 32px; border-radius: 50%; border: 2px solid #2e3849; background: #1a2a1a; cursor: pointer; transition: 0.2s; position: relative;">
+              <span class="check-mark"><i class="fas fa-check"></i></span>
+            </button>
+            <button class="bg-preset" data-color="#2d1a1a" style="width: 32px; height: 32px; border-radius: 50%; border: 2px solid #2e3849; background: #2d1a1a; cursor: pointer; transition: 0.2s; position: relative;">
+              <span class="check-mark"><i class="fas fa-check"></i></span>
+            </button>
+            <button class="bg-preset" data-color="#1a1a2a" style="width: 32px; height: 32px; border-radius: 50%; border: 2px solid #2e3849; background: #1a1a2a; cursor: pointer; transition: 0.2s; position: relative;">
+              <span class="check-mark"><i class="fas fa-check"></i></span>
+            </button>
+          </div>
+        </div>
+
+        <!-- Gradient Presets -->
+        <div style="margin-bottom: 0.8rem;">
+          <div style="color: #8892b0; font-size: 0.75rem; margin-bottom: 0.5rem;">Gradients</div>
+          <div style="display: flex; flex-wrap: wrap; gap: 8px;">
+            <button class="bg-preset" data-gradient="linear-gradient(135deg, #667eea 0%, #764ba2 100%)" style="width: 60px; height: 32px; border-radius: 8px; border: 2px solid #2e3849; background: linear-gradient(135deg, #667eea, #764ba2); cursor: pointer; transition: 0.2s; position: relative; display: flex; align-items: center; justify-content: center; font-size: 0.5rem; color: white; text-shadow: 0 1px 4px rgba(0,0,0,0.5);">
+              <span class="check-mark"><i class="fas fa-check"></i></span>
+            </button>
+            <button class="bg-preset" data-gradient="linear-gradient(135deg, #f093fb 0%, #f5576c 100%)" style="width: 60px; height: 32px; border-radius: 8px; border: 2px solid #2e3849; background: linear-gradient(135deg, #f093fb, #f5576c); cursor: pointer; transition: 0.2s; position: relative; display: flex; align-items: center; justify-content: center; font-size: 0.5rem; color: white; text-shadow: 0 1px 4px rgba(0,0,0,0.5);">
+              <span class="check-mark"><i class="fas fa-check"></i></span>
+            </button>
+            <button class="bg-preset" data-gradient="linear-gradient(135deg, #4facfe 0%, #00f2fe 100%)" style="width: 60px; height: 32px; border-radius: 8px; border: 2px solid #2e3849; background: linear-gradient(135deg, #4facfe, #00f2fe); cursor: pointer; transition: 0.2s; position: relative; display: flex; align-items: center; justify-content: center; font-size: 0.5rem; color: white; text-shadow: 0 1px 4px rgba(0,0,0,0.5);">
+              <span class="check-mark"><i class="fas fa-check"></i></span>
+            </button>
+            <button class="bg-preset" data-gradient="linear-gradient(135deg, #43e97b 0%, #38f9d7 100%)" style="width: 60px; height: 32px; border-radius: 8px; border: 2px solid #2e3849; background: linear-gradient(135deg, #43e97b, #38f9d7); cursor: pointer; transition: 0.2s; position: relative; display: flex; align-items: center; justify-content: center; font-size: 0.5rem; color: #0b0e14; text-shadow: 0 1px 4px rgba(255,255,255,0.3);">
+              <span class="check-mark"><i class="fas fa-check"></i></span>
+            </button>
+            <button class="bg-preset" data-gradient="linear-gradient(135deg, #fa709a 0%, #fee140 100%)" style="width: 60px; height: 32px; border-radius: 8px; border: 2px solid #2e3849; background: linear-gradient(135deg, #fa709a, #fee140); cursor: pointer; transition: 0.2s; position: relative; display: flex; align-items: center; justify-content: center; font-size: 0.5rem; color: #0b0e14; text-shadow: 0 1px 4px rgba(255,255,255,0.3);">
+              <span class="check-mark"><i class="fas fa-check"></i></span>
+            </button>
+            <button class="bg-preset" data-gradient="linear-gradient(135deg, #a18cd1 0%, #fbc2eb 100%)" style="width: 60px; height: 32px; border-radius: 8px; border: 2px solid #2e3849; background: linear-gradient(135deg, #a18cd1, #fbc2eb); cursor: pointer; transition: 0.2s; position: relative; display: flex; align-items: center; justify-content: center; font-size: 0.5rem; color: #0b0e14; text-shadow: 0 1px 4px rgba(255,255,255,0.3);">
+              <span class="check-mark"><i class="fas fa-check"></i></span>
+            </button>
+          </div>
+        </div>
+
+        <!-- Custom Color Picker -->
+        <div style="display: flex; flex-wrap: wrap; gap: 10px; align-items: center; padding: 0.6rem; background: #1a212d; border-radius: 12px; border: 1px solid #2e3849; margin-bottom: 0.6rem;">
+          <div class="color-picker-wrapper">
+            <i class="fas fa-paint-brush" style="color: #5865f2; font-size: 0.9rem;"></i>
+            <input type="color" id="customColorPicker" value="#5865f2">
+            <span style="color: #8892b0; font-size: 0.75rem;">Custom</span>
+          </div>
+          <button id="applyCustomColor" style="background: #5865f2; border: none; padding: 6px 16px; border-radius: 30px; color: white; font-weight: 600; font-size: 0.8rem; cursor: pointer; transition: 0.2s;">
+            Apply
+          </button>
+        </div>
+
+        <!-- Custom Gradient Builder -->
+        <div style="padding: 0.6rem; background: #1a212d; border-radius: 12px; border: 1px solid #2e3849;">
+          <div style="color: #8892b0; font-size: 0.75rem; margin-bottom: 0.4rem;">Custom Gradient</div>
+          <div style="display: flex; flex-wrap: wrap; gap: 6px; align-items: center;">
+            <div class="gradient-input-wrapper">
+              <input type="color" id="gradientColor1" value="#667eea">
+              <input type="color" id="gradientColor2" value="#764ba2">
+              <input type="text" id="gradientAngle" class="gradient-angle-input" value="135" placeholder="deg" style="width: 50px; font-size: 0.75rem; padding: 4px 8px;">
+              <span style="color: #8892b0; font-size: 0.65rem;">deg</span>
+            </div>
+            <button id="applyCustomGradient" style="background: #5865f2; border: none; padding: 6px 16px; border-radius: 30px; color: white; font-weight: 600; font-size: 0.8rem; cursor: pointer; transition: 0.2s;">
+              Apply
+            </button>
+          </div>
+        </div>
+      </div>
+    </div>
+  </div>
+</div>
+
+<!-- ========== CROP MODAL ========== -->
+<div id="cropModal" class="crop-modal">
+  <div class="crop-modal-content">
+    <h3 id="cropTitle"><i class="fas fa-crop-alt" style="color:#5865f2;"></i> Crop Image</h3>
+    <div class="crop-container" id="cropContainer">
+      <img id="cropImage" src="" alt="Crop preview">
+      <div id="cropOverlay" class="crop-overlay"></div>
+    </div>
+    <div class="crop-controls">
+      <div class="crop-slider">
+        <i class="fas fa-search-minus" style="color:#5865f2;"></i>
+        <input type="range" id="cropZoom" min="0.2" max="3" step="0.01" value="1">
+        <i class="fas fa-search-plus" style="color:#5865f2;"></i>
+        <span class="crop-zoom-display" id="cropZoomDisplay">100%</span>
+      </div>
+      <button id="cropReset" style="background: #2a3444; border: 1px solid #3b4a66; padding: 10px 16px; border-radius: 40px; color: #d3def5; cursor: pointer;">
+        <i class="fas fa-undo"></i> Reset
+      </button>
+    </div>
+    <div class="crop-controls" style="margin-top: 0.5rem;">
+      <button id="cropCancel" class="danger"><i class="fas fa-times"></i> Cancel</button>
+      <button id="cropSave" class="primary"><i class="fas fa-check"></i> Apply Crop</button>
+    </div>
+  </div>
+</div>
+
+<!-- hidden file inputs -->
+<input type="file" id="avatarFileInput" class="file-input-hidden" accept="image/*">
+<input type="file" id="bannerFileInput" class="file-input-hidden" accept="image/*">
+
+<script>
+  const API_URL = '';
+
+  // ------ DOM refs ------
+  const authCard = document.getElementById('authCard');
+  const profilePage = document.getElementById('profilePage');
+  const profileCard = document.getElementById('profileCard');
+  const tabSignin = document.getElementById('tabSignin');
+  const tabSignup = document.getElementById('tabSignup');
+  const formSignin = document.getElementById('formSignin');
+  const formSignup = document.getElementById('formSignup');
+  const signinForm = document.getElementById('signinForm');
+  const signupForm = document.getElementById('signupForm');
+  const messageBox = document.getElementById('messageBox');
+  const messageText = document.getElementById('messageText');
+
+  const usernameText = document.getElementById('usernameText');
+  const joinDateText = document.getElementById('joinDateText');
+  const bioText = document.getElementById('bioText');
+  const avatarImg = document.getElementById('avatarImg');
+  const avatarPlaceholder = document.getElementById('avatarPlaceholder');
+  const bannerImg = document.getElementById('bannerImg');
+  const bannerPlaceholder = document.getElementById('bannerPlaceholder');
+  const logoutBtn = document.getElementById('logoutBtn');
+  const deleteAccountBtn = document.getElementById('deleteAccountBtn');
+  const avatarWrap = document.getElementById('avatarWrap');
+  const bannerWrap = document.getElementById('bannerWrap');
+  const avatarFileInput = document.getElementById('avatarFileInput');
+  const bannerFileInput = document.getElementById('bannerFileInput');
+  const bgCustomizationContainer = document.getElementById('bgCustomizationContainer');
+
+  // Bio elements
+  const editBioBtn = document.getElementById('editBioBtn');
+  const editBioArea = document.getElementById('editBioArea');
+  const editBioInput = document.getElementById('editBioInput');
+  const saveBioBtn = document.getElementById('saveBioBtn');
+  const cancelEditBio = document.getElementById('cancelEditBio');
+
+  // Background customization elements
+  const bgToggle = document.getElementById('bgToggle');
+  const bgContent = document.getElementById('bgContent');
+  const bgChevron = document.getElementById('bgChevron');
+  const customColorPicker = document.getElementById('customColorPicker');
+  const applyCustomColor = document.getElementById('applyCustomColor');
+  const gradientColor1 = document.getElementById('gradientColor1');
+  const gradientColor2 = document.getElementById('gradientColor2');
+  const gradientAngle = document.getElementById('gradientAngle');
+  const applyCustomGradient = document.getElementById('applyCustomGradient');
+
+  // Crop modal elements
+  const cropModal = document.getElementById('cropModal');
+  const cropImage = document.getElementById('cropImage');
+  const cropContainer = document.getElementById('cropContainer');
+  const cropOverlay = document.getElementById('cropOverlay');
+  const cropZoom = document.getElementById('cropZoom');
+  const cropZoomDisplay = document.getElementById('cropZoomDisplay');
+  const cropCancel = document.getElementById('cropCancel');
+  const cropSave = document.getElementById('cropSave');
+  const cropReset = document.getElementById('cropReset');
+  const cropTitle = document.getElementById('cropTitle');
+
+  let currentUser = null;
+  let authToken = localStorage.getItem('vibe_token');
+
+  // Crop state
+  let cropData = {
+    imageData: null,
+    type: 'avatar',
+    zoom: 1,
+    panX: 0,
+    panY: 0,
+    isDragging: false,
+    startX: 0,
+    startY: 0,
+    startPanX: 0,
+    startPanY: 0,
+    originalWidth: 0,
+    originalHeight: 0,
+    displayWidth: 0,
+    displayHeight: 0,
+    containerWidth: 0,
+    containerHeight: 0
+  };
+
+  // ------ helpers ------
+  function setMessage(text, type = 'info') {
+    messageText.innerText = text;
+    messageBox.className = 'message-box';
+    const icon = messageBox.querySelector('i');
+    if (type === 'success') { messageBox.classList.add('success'); icon.className = 'fas fa-check-circle'; }
+    else if (type === 'error') { messageBox.classList.add('error'); icon.className = 'fas fa-exclamation-circle'; }
+    else { icon.className = 'fas fa-circle-info'; }
+  }
+
+  // ------ API calls ------
+  async function apiCall(endpoint, options = {}) {
+    const headers = {
+      'Content-Type': 'application/json',
+      ...options.headers
+    };
+    if (authToken) {
+      headers.Authorization = `Bearer ${authToken}`;
+    }
+    const res = await fetch(`${API_URL}${endpoint}`, {
+      ...options,
+      headers
+    });
+    const data = await res.json();
+    if (!res.ok) {
+      throw new Error(data.error || 'API error');
+    }
+    return data;
+  }
+
+  // ------ render profile ------
+  function renderProfile(user) {
+    if (!user) return;
+    currentUser = user;
+    
+    // Username
+    usernameText.textContent = user.username;
+    
+    // Join date
+    if (user.createdAt) {
+      const date = new Date(user.createdAt);
+      const months = ['January', 'February', 'March', 'April', 'May', 'June', 'July', 'August', 'September', 'October', 'November', 'December'];
+      joinDateText.textContent = `${months[date.getMonth()]} ${date.getFullYear()}`;
+    }
+    
+    // Bio - make sure it shows correctly
+    if (user.bio && user.bio.trim() !== '') {
+      bioText.textContent = user.bio;
+    } else {
+      bioText.textContent = 'No bio yet.';
+    }
+
+    // Avatar
+    if (user.avatar && user.avatar.startsWith('data:image')) {
+      avatarImg.src = user.avatar;
+      avatarImg.classList.remove('hidden');
+      avatarPlaceholder.classList.add('hidden');
+    } else {
+      avatarImg.classList.add('hidden');
+      avatarPlaceholder.classList.remove('hidden');
+    }
+
+    // Banner
+    if (user.banner && user.banner.startsWith('data:image')) {
+      bannerImg.src = user.banner;
+      bannerImg.classList.remove('hidden');
+      bannerPlaceholder.classList.add('hidden');
+    } else {
+      bannerImg.classList.add('hidden');
+      bannerPlaceholder.classList.remove('hidden');
+    }
+
+    // Background
+    if (user.background) {
+      profileCard.style.background = user.background;
+    } else {
+      profileCard.style.background = '';
+    }
+  }
+  // ------ show profile ------
+  function showProfile(user) {
+    authCard.style.display = 'none';
+    profilePage.classList.add('active');
+    bgCustomizationContainer.classList.add('active');
+    renderProfile(user);
+  }
+
+  // ------ show auth ------
+  function showAuth() {
+    authCard.style.display = 'block';
+    profilePage.classList.remove('active');
+    bgCustomizationContainer.classList.remove('active');
+    currentUser = null;
+    authToken = null;
+    localStorage.removeItem('vibe_token');
+    document.getElementById('signinIdentifier').value = '';
+    document.getElementById('signinPassword').value = '';
+    setMessage('Signed out', 'info');
+  }
+
+  // ------ login ------
+  async function loginUser(identifier, password) {
+    try {
+      const data = await apiCall('/api/signin', {
+        method: 'POST',
+        body: JSON.stringify({ identifier, password })
+      });
+      authToken = data.token;
+      localStorage.setItem('vibe_token', authToken);
+      showProfile(data.user);
+      setMessage(`Welcome back, ${data.user.username} ✨`, 'success');
+      return true;
+    } catch (err) {
+      if (err.message.includes('not verified')) {
+        setMessage('📧 Email not verified. Check your inbox for the verification link.', 'error');
+      } else {
+        setMessage(err.message || 'Login failed', 'error');
+      }
+      return false;
+    }
+  }
+
+  // ------ signup ------
+  async function signupUser(username, email, password) {
+    try {
+      const data = await apiCall('/api/signup', {
+        method: 'POST',
+        body: JSON.stringify({ username, email: email || '', password })
+      });
+      authToken = data.token;
+      localStorage.setItem('vibe_token', authToken);
+      showProfile(data.user);
+      if (email) {
+        setMessage(`🎉 Account created! Check your email to verify.`, 'success');
+      } else {
+        setMessage(`🎉 Account created! Welcome ${username}`, 'success');
+      }
+      return true;
+    } catch (err) {
+      setMessage(err.message || 'Signup failed', 'error');
+      return false;
+    }
+  }
+
+  // ------ update profile (avatar, banner, background, bio only) ------
+  async function updateProfile(updates) {
+    try {
+      const data = await apiCall('/api/profile', {
+        method: 'PUT',
+        body: JSON.stringify(updates)
+      });
+      renderProfile(data.user);
+      return true;
+    } catch (err) {
+      setMessage(err.message || 'Update failed', 'error');
+      return false;
+    }
+  }
+
+  // ------ delete account ------
+  async function deleteAccount() {
+    if (!currentUser) return;
+    
+    const confirmDelete = confirm(`Are you sure you want to delete your account "${currentUser.username}"? This action cannot be undone!`);
+    if (!confirmDelete) return;
+    
+    try {
+      await apiCall('/api/delete-account', {
+        method: 'DELETE'
+      });
+      setMessage('Account deleted successfully', 'success');
+      setTimeout(showAuth, 1500);
+    } catch (err) {
+      setMessage(err.message || 'Failed to delete account', 'error');
+    }
+  }
+
+  // ------ check auto-login ------
+  async function checkAuth() {
+    if (!authToken) return;
+    try {
+      const data = await apiCall('/api/me');
+      showProfile(data.user);
+    } catch (err) {
+      localStorage.removeItem('vibe_token');
+      authToken = null;
+    }
+  }
+
+  // ==================== BIO EDITING ====================
+  editBioBtn.addEventListener('click', function() {
+    if (currentUser) {
+      editBioArea.classList.remove('hidden');
+      editBioInput.value = currentUser.bio || '';
+      editBioInput.focus();
+    }
+  });
+
+  saveBioBtn.addEventListener('click', async function() {
+    const bio = editBioInput.value.trim();
+    const success = await updateProfile({ bio: bio });
+    if (success) {
+      editBioArea.classList.add('hidden');
+      setMessage('Bio updated! ✏️', 'success');
+    }
+  });
+
+  cancelEditBio.addEventListener('click', function() {
+    editBioArea.classList.add('hidden');
+  });
+
+  editBioInput.addEventListener('keydown', (e) => {
+    if (e.key === 'Enter') saveBioBtn.click();
+    if (e.key === 'Escape') cancelEditBio.click();
+  });
+
+  // Edit profile button - opens background customization
+  document.getElementById('editProfileBtn').addEventListener('click', function() {
+    const bgToggle = document.getElementById('bgToggle');
+    if (bgToggle) {
+      bgToggle.click();
+    }
+  });
+
+  // ==================== COLLAPSIBLE BACKGROUND ====================
+  let bgOpen = false;
+
+  bgToggle.addEventListener('click', function() {
+    bgOpen = !bgOpen;
+    if (bgOpen) {
+      bgContent.classList.add('open');
+      bgChevron.classList.add('open');
+    } else {
+      bgContent.classList.remove('open');
+      bgChevron.classList.remove('open');
+    }
+  });
+
+  // ==================== BACKGROUND CUSTOMIZATION ====================
+
+  function applyBackground(bgValue) {
+    if (currentUser) {
+      updateProfile({ background: bgValue });
+    }
+  }
+
+  document.querySelectorAll('.bg-preset').forEach(btn => {
+    btn.addEventListener('click', function() {
+      const color = this.dataset.color;
+      const gradient = this.dataset.gradient;
+      
+      document.querySelectorAll('.bg-preset').forEach(b => b.classList.remove('active'));
+      this.classList.add('active');
+      
+      if (color) {
+        applyBackground(color);
+      } else if (gradient) {
+        applyBackground(gradient);
+      }
+    });
+  });
+
+  applyCustomColor.addEventListener('click', function() {
+    const color = customColorPicker.value;
+    document.querySelectorAll('.bg-preset').forEach(b => b.classList.remove('active'));
+    applyBackground(color);
+    setMessage('Background color updated! 🎨', 'success');
+  });
+
+  applyCustomGradient.addEventListener('click', function() {
+    const color1 = gradientColor1.value;
+    const color2 = gradientColor2.value;
+    const angle = gradientAngle.value || '135';
+    const gradient = `linear-gradient(${angle}deg, ${color1}, ${color2})`;
+    document.querySelectorAll('.bg-preset').forEach(b => b.classList.remove('active'));
+    applyBackground(gradient);
+    setMessage('Background gradient updated! 🌈', 'success');
+  });
+
+  // ==================== CROP FUNCTIONALITY ====================
+
+  function openCropModal(imageData, type) {
+    cropData.imageData = imageData;
+    cropData.type = type;
+    cropData.zoom = 1;
+    cropData.panX = 0;
+    cropData.panY = 0;
+    cropData.isDragging = false;
+
+    cropImage.src = imageData;
+    cropTitle.innerHTML = `<i class="fas fa-crop-alt" style="color:#5865f2;"></i> Crop ${type === 'avatar' ? 'Avatar' : 'Banner'}`;
+
+    if (type === 'avatar') {
+      cropOverlay.className = 'crop-overlay';
+      cropOverlay.style.borderRadius = '50%';
+    } else {
+      cropOverlay.className = 'crop-overlay banner-crop';
+      cropOverlay.style.borderRadius = '12px';
+    }
+
+    cropModal.classList.add('active');
+    document.body.style.overflow = 'hidden';
+
+    cropZoom.value = 1;
+    cropZoomDisplay.textContent = '100%';
+
+    cropImage.onload = function() {
+      cropData.originalWidth = cropImage.naturalWidth;
+      cropData.originalHeight = cropImage.naturalHeight;
+      setTimeout(() => {
+        updateCropContainer();
+        updateCropOverlay();
+      }, 50);
+    };
+
+    if (cropImage.complete && cropImage.naturalWidth > 0) {
+      cropData.originalWidth = cropImage.naturalWidth;
+      cropData.originalHeight = cropImage.naturalHeight;
+      setTimeout(() => {
+        updateCropContainer();
+        updateCropOverlay();
+      }, 50);
+    }
+  }
+
+  function closeCropModal() {
+    cropModal.classList.remove('active');
+    document.body.style.overflow = '';
+    cropData.imageData = null;
+  }
+
+  function updateCropContainer() {
+    const container = cropContainer;
+    const rect = container.getBoundingClientRect();
+    cropData.containerWidth = rect.width;
+    cropData.containerHeight = rect.height;
+
+    const img = cropImage;
+    const naturalW = cropData.originalWidth;
+    const naturalH = cropData.originalHeight;
+    const zoom = cropData.zoom;
+
+    const containerRatio = rect.width / rect.height;
+    const imageRatio = naturalW / naturalH;
+
+    let displayW, displayH;
+    if (imageRatio > containerRatio) {
+      displayW = rect.width * zoom;
+      displayH = (rect.width / imageRatio) * zoom;
+    } else {
+      displayH = rect.height * zoom;
+      displayW = (rect.height * imageRatio) * zoom;
+    }
+
+    cropData.displayWidth = displayW;
+    cropData.displayHeight = displayH;
+
+    const maxPanX = Math.max(0, (displayW - rect.width) / 2);
+    const maxPanY = Math.max(0, (displayH - rect.height) / 2);
+    const panX = Math.max(-maxPanX, Math.min(maxPanX, cropData.panX * maxPanX));
+    const panY = Math.max(-maxPanY, Math.min(maxPanY, cropData.panY * maxPanY));
+
+    img.style.width = displayW + 'px';
+    img.style.height = displayH + 'px';
+    img.style.transform = `translate(calc(-50% + ${panX}px), calc(-50% + ${panY}px))`;
+  }
+
+  function updateCropOverlay() {
+    const container = cropContainer;
+    const rect = container.getBoundingClientRect();
+
+    let size;
+    if (cropData.type === 'avatar') {
+      size = Math.min(rect.width, rect.height) * 0.75;
+      const left = (rect.width - size) / 2;
+      const top = (rect.height - size) / 2;
+      cropOverlay.style.width = size + 'px';
+      cropOverlay.style.height = size + 'px';
+      cropOverlay.style.left = left + 'px';
+      cropOverlay.style.top = top + 'px';
+      cropOverlay.style.borderRadius = '50%';
+    } else {
+      const aspectRatio = 16/9;
+      let width, height;
+      if (rect.width / rect.height > aspectRatio) {
+        height = rect.height * 0.75;
+        width = height * aspectRatio;
+      } else {
+        width = rect.width * 0.75;
+        height = width / aspectRatio;
+      }
+      const left = (rect.width - width) / 2;
+      const top = (rect.height - height) / 2;
+      cropOverlay.style.width = width + 'px';
+      cropOverlay.style.height = height + 'px';
+      cropOverlay.style.left = left + 'px';
+      cropOverlay.style.top = top + 'px';
+      cropOverlay.style.borderRadius = '12px';
+    }
+  }
+
+  function performCrop() {
+    const img = cropImage;
+    const container = cropContainer;
+    const rect = container.getBoundingClientRect();
+
+    const overlayRect = cropOverlay.getBoundingClientRect();
+    const imgRect = img.getBoundingClientRect();
+
+    const cropX = (overlayRect.left - imgRect.left) / imgRect.width;
+    const cropY = (overlayRect.top - imgRect.top) / imgRect.height;
+    const cropW = overlayRect.width / imgRect.width;
+    const cropH = overlayRect.height / imgRect.height;
+
+    const x = Math.max(0, Math.min(1, cropX));
+    const y = Math.max(0, Math.min(1, cropY));
+    const w = Math.min(1 - x, Math.max(0.01, cropW));
+    const h = Math.min(1 - y, Math.max(0.01, cropH));
+
+    const canvas = document.createElement('canvas');
+    const ctx = canvas.getContext('2d');
+
+    const srcW = cropData.originalWidth;
+    const srcH = cropData.originalHeight;
+
+    const srcX = x * srcW;
+    const srcY = y * srcH;
+    const srcW_crop = w * srcW;
+    const srcH_crop = h * srcH;
+
+    let destW, destH;
+    if (cropData.type === 'avatar') {
+      const size = Math.min(srcW_crop, srcH_crop);
+      const offsetX = (srcW_crop - size) / 2;
+      const offsetY = (srcH_crop - size) / 2;
+      canvas.width = 512;
+      canvas.height = 512;
+      ctx.drawImage(img, srcX + offsetX, srcY + offsetY, size, size, 0, 0, 512, 512);
+    } else {
+      canvas.width = 1200;
+      canvas.height = 675;
+      ctx.drawImage(img, srcX, srcY, srcW_crop, srcH_crop, 0, 0, 1200, 675);
+    }
+
+    const croppedDataUrl = canvas.toDataURL('image/png');
+    closeCropModal();
+
+    const updates = {};
+    if (cropData.type === 'avatar') {
+      updates.avatar = croppedDataUrl;
+    } else {
+      updates.banner = croppedDataUrl;
+    }
+
+    updateProfile(updates).then(() => {
+      setMessage(`${cropData.type === 'avatar' ? 'Avatar' : 'Banner'} updated! 🎨`, 'success');
+    });
+  }
+
+  function resetCrop() {
+    cropData.zoom = 1;
+    cropData.panX = 0;
+    cropData.panY = 0;
+    cropZoom.value = 1;
+    cropZoomDisplay.textContent = '100%';
+    updateCropContainer();
+    updateCropOverlay();
+  }
+
+  // ------ Crop event listeners ------
+  cropZoom.addEventListener('input', function() {
+    const zoom = parseFloat(this.value);
+    cropData.zoom = zoom;
+    cropZoomDisplay.textContent = Math.round(zoom * 100) + '%';
+    updateCropContainer();
+    updateCropOverlay();
+  });
+
+  cropReset.addEventListener('click', resetCrop);
+
+  cropContainer.addEventListener('mousedown', function(e) {
+    cropData.isDragging = true;
+    cropData.startX = e.clientX;
+    cropData.startY = e.clientY;
+    cropData.startPanX = cropData.panX;
+    cropData.startPanY = cropData.panY;
+    this.style.cursor = 'grabbing';
+  });
+
+  document.addEventListener('mousemove', function(e) {
+    if (!cropData.isDragging) return;
+    const dx = (e.clientX - cropData.startX) / 100;
+    const dy = (e.clientY - cropData.startY) / 100;
+    cropData.panX = cropData.startPanX + dx;
+    cropData.panY = cropData.startPanY + dy;
+    updateCropContainer();
+    updateCropOverlay();
+  });
+
+  document.addEventListener('mouseup', function() {
+    if (cropData.isDragging) {
+      cropData.isDragging = false;
+      cropContainer.style.cursor = 'grab';
+    }
+  });
+
+  cropContainer.addEventListener('touchstart', function(e) {
+    const touch = e.touches[0];
+    cropData.isDragging = true;
+    cropData.startX = touch.clientX;
+    cropData.startY = touch.clientY;
+    cropData.startPanX = cropData.panX;
+    cropData.startPanY = cropData.panY;
+    e.preventDefault();
+  });
+
+  document.addEventListener('touchmove', function(e) {
+    if (!cropData.isDragging) return;
+    const touch = e.touches[0];
+    const dx = (touch.clientX - cropData.startX) / 100;
+    const dy = (touch.clientY - cropData.startY) / 100;
+    cropData.panX = cropData.startPanX + dx;
+    cropData.panY = cropData.startPanY + dy;
+    updateCropContainer();
+    updateCropOverlay();
+    e.preventDefault();
+  });
+
+  document.addEventListener('touchend', function() {
+    if (cropData.isDragging) {
+      cropData.isDragging = false;
+    }
+  });
+
+  cropCancel.addEventListener('click', closeCropModal);
+  cropSave.addEventListener('click', performCrop);
+
+  cropModal.addEventListener('click', function(e) {
+    if (e.target === this) {
+      closeCropModal();
+    }
+  });
+
+  // ------ File input handlers ------
+  function handleFileSelect(file, type) {
+    if (!file) return;
+    const reader = new FileReader();
+    reader.onload = function(ev) {
+      const dataUrl = ev.target.result;
+      openCropModal(dataUrl, type);
+    };
+    reader.readAsDataURL(file);
+  }
+
+  avatarFileInput.addEventListener('change', function(e) {
+    const file = this.files[0];
+    if (file) {
+      handleFileSelect(file, 'avatar');
+    }
+    this.value = '';
+  });
+
+  bannerFileInput.addEventListener('change', function(e) {
+    const file = this.files[0];
+    if (file) {
+      handleFileSelect(file, 'banner');
+    }
+    this.value = '';
+  });
+
+  avatarWrap.addEventListener('click', () => avatarFileInput.click());
+  bannerWrap.addEventListener('click', () => bannerFileInput.click());
+
+  // ------ event listeners (auth) ------
+  tabSignin.addEventListener('click', function() {
+    tabSignin.classList.add('active');
+    tabSignup.classList.remove('active');
+    formSignin.classList.remove('hidden');
+    formSignup.classList.add('hidden');
+    setMessage('Sign in to your Vibe account', 'info');
+  });
+  
+  tabSignup.addEventListener('click', function() {
+    tabSignup.classList.add('active');
+    tabSignin.classList.remove('active');
+    formSignup.classList.remove('hidden');
+    formSignin.classList.add('hidden');
+    setMessage('Join Vibe — create your account', 'info');
+  });
+
+  signinForm.addEventListener('submit', async (e) => {
+    e.preventDefault();
+    const identifier = document.getElementById('signinIdentifier').value.trim();
+    const password = document.getElementById('signinPassword').value.trim();
+    if (!identifier || !password) { setMessage('Enter email/username and password.', 'error'); return; }
+    await loginUser(identifier, password);
+  });
+
+  signupForm.addEventListener('submit', async (e) => {
+    e.preventDefault();
+    const username = document.getElementById('signupUsername').value.trim();
+    const email = document.getElementById('signupEmail').value.trim();
+    const password = document.getElementById('signupPassword').value.trim();
+    if (username.length < 2) { setMessage('Username min 2 chars.', 'error'); return; }
+    if (password.length < 6) { setMessage('Password min 6 chars.', 'error'); return; }
+    await signupUser(username, email, password);
+  });
+
+  logoutBtn.addEventListener('click', showAuth);
+  deleteAccountBtn.addEventListener('click', deleteAccount);
+
+  messageBox.addEventListener('click', function() {
+    if (!formSignin.classList.contains('hidden')) {
+      setMessage('Sign in to your Vibe account', 'info');
+    } else {
+      setMessage('Join Vibe — create your account', 'info');
+    }
+  });
+
+  window.addEventListener('resize', function() {
+    if (cropModal.classList.contains('active')) {
+      updateCropContainer();
+      updateCropOverlay();
+    }
+  });
+
+  // ------ start ------
+  checkAuth();
+</script>
+</body>
+</html>
