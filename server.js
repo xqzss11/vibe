@@ -15,12 +15,9 @@ app.use(express.static('public'));
 // ===== DATA FILE =====
 const USERS_FILE = path.join(__dirname, 'data', 'users.json');
 
-// Stelle sicher, dass der data-Ordner existiert
 if (!fs.existsSync(path.join(__dirname, 'data'))) {
   fs.mkdirSync(path.join(__dirname, 'data'));
 }
-
-// Initialisiere users.json falls nicht vorhanden
 if (!fs.existsSync(USERS_FILE)) {
   fs.writeFileSync(USERS_FILE, JSON.stringify([]));
 }
@@ -29,12 +26,7 @@ if (!fs.existsSync(USERS_FILE)) {
 function getUsers() {
   try {
     const data = fs.readFileSync(USERS_FILE);
-    const users = JSON.parse(data);
-    // Stelle sicher, dass jeder User ein bio-Feld hat
-    return users.map(u => ({
-      ...u,
-      bio: u.bio || ''
-    }));
+    return JSON.parse(data);
   } catch (err) {
     return [];
   }
@@ -71,9 +63,7 @@ function isEmailTaken(users, email, excludeId = null) {
   );
 }
 
-// ============================================================
 // ===== AUTH ENDPOINTS =====
-// ============================================================
 
 // SIGN UP
 app.post('/api/signup', (req, res) => {
@@ -91,7 +81,6 @@ app.post('/api/signup', (req, res) => {
   if (isUsernameTaken(users, username)) {
     return res.status(400).json({ error: 'Username already taken' });
   }
-  
   if (email && isEmailTaken(users, email)) {
     return res.status(400).json({ error: 'Email already registered' });
   }
@@ -224,11 +213,9 @@ app.post('/api/signin', (req, res) => {
   if (!user) {
     return res.status(401).json({ error: 'Invalid credentials' });
   }
-  
   if (user.password !== password) {
     return res.status(401).json({ error: 'Invalid credentials' });
   }
-  
   if (user.email && !user.verified) {
     return res.status(403).json({ 
       error: 'Email not verified. Check your inbox.',
@@ -255,7 +242,7 @@ app.post('/api/signin', (req, res) => {
   });
 });
 
-// GET CURRENT USER (auto-login)
+// GET CURRENT USER
 app.get('/api/me', (req, res) => {
   const token = req.headers.authorization?.replace('Bearer ', '');
   if (!token) {
@@ -282,23 +269,19 @@ app.get('/api/me', (req, res) => {
   });
 });
 
-// ============================================================
 // ===== PROFILE ENDPOINTS =====
-// ============================================================
 
 // GET PUBLIC PROFILE
 app.get('/api/profile/:identifier', (req, res) => {
+  console.log('🔍 Profile requested for:', req.params.identifier);
   const { identifier } = req.params;
   const users = getUsers();
-  
   const user = users.find(u => 
     u.username.toLowerCase() === identifier.toLowerCase() || u.id === identifier
   );
-  
   if (!user) {
     return res.status(404).json({ error: 'User not found' });
   }
-  
   res.json({
     id: user.id,
     username: user.username,
@@ -311,7 +294,7 @@ app.get('/api/profile/:identifier', (req, res) => {
   });
 });
 
-// UPDATE PROFILE (username CANNOT be changed)
+// UPDATE PROFILE
 app.put('/api/profile', (req, res) => {
   const token = req.headers.authorization?.replace('Bearer ', '');
   if (!token) {
@@ -367,19 +350,12 @@ app.delete('/api/delete-account', (req, res) => {
   saveUsers(users);
   
   console.log(`🗑️ Account deleted: ${deletedUser.username}`);
-  
-  res.json({ 
-    success: true, 
-    message: 'Account deleted successfully'
-  });
+  res.json({ success: true, message: 'Account deleted successfully' });
 });
 
-// ============================================================
-// ===== NEU: GET ALL USERS (für Leaderboard) =====
-// ============================================================
+// ===== NEU: GET ALL USERS (FÜR LEADERBOARD) =====
 app.get('/api/users', (req, res) => {
   const users = getUsers();
-  // Sicherheitshalber keine Passwörter oder Tokens senden
   res.json(users.map(u => ({
     id: u.id,
     username: u.username,
@@ -391,10 +367,7 @@ app.get('/api/users', (req, res) => {
   })));
 });
 
-// ============================================================
 // ===== SERVE FRONTEND =====
-// ============================================================
-
 app.get('/', (req, res) => {
   res.sendFile(path.join(__dirname, 'public', 'index.html'));
 });
@@ -403,13 +376,10 @@ app.get('/profile/:identifier', (req, res) => {
   res.sendFile(path.join(__dirname, 'public', 'profile.html'));
 });
 
-// ============================================================
 // ===== START SERVER =====
-// ============================================================
-
 app.listen(PORT, () => {
   console.log(`\n🚀 VibeSphere server running at http://localhost:${PORT}`);
   console.log(`📁 Data stored in: ${USERS_FILE}`);
   console.log(`\n🔒 Usernames are permanent and cannot be changed`);
-  console.log(`📊 /api/users endpoint available for leaderboard\n`);
+  console.log(`🗑️ Delete account to free up the username\n`);
 });
